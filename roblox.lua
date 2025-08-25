@@ -2,6 +2,7 @@ local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local GuiService = game:GetService("StarterGui")
+local RunService = game:GetService("RunService")
 
 -- ==== Файлы ====
 local commands_path = "commands.json"
@@ -46,38 +47,43 @@ local function show_success()
     GuiService:SetCore("SendNotification", {
         Title = "Roblox Script",
         Text = "script executed ✅",
-        Duration = 3
+        Duration = 2
     })
 end
 
--- ==== Основной цикл ====
-local success, err = pcall(function()
-    if isfile(commands_path) then
-        local data = HttpService:JSONDecode(readfile(commands_path))
-        local username = LocalPlayer.Name
-        local command = data[username]
-        if command then
-            if command == "jump" then
-                LocalPlayer.Character.Humanoid.Jump = true
-            elseif command == "kill" then
-                LocalPlayer.Character:BreakJoints()
-            elseif command == "glitch" then
-                for i=1,20 do
-                    task.wait(0.05)
-                    game.Lighting.Brightness = math.random()
+-- ==== Основной цикл для автообновления команд ====
+local function execute_commands()
+    local success, err = pcall(function()
+        if isfile(commands_path) then
+            local data = HttpService:JSONDecode(readfile(commands_path))
+            local username = LocalPlayer.Name
+            local command = data[username]
+            if command then
+                if command == "jump" then
+                    LocalPlayer.Character.Humanoid.Jump = true
+                elseif command == "kill" then
+                    LocalPlayer.Character:BreakJoints()
+                elseif command == "glitch" then
+                    for i=1,20 do
+                        task.wait(0.05)
+                        game.Lighting.Brightness = math.random()
+                    end
+                    game.Lighting.Brightness = 2
+                elseif command == "lock" then
+                    LocalPlayer.PlayerScripts:ClearAllChildren()
                 end
-                game.Lighting.Brightness = 2
-            elseif command == "lock" then
-                LocalPlayer.PlayerScripts:ClearAllChildren()
+                data[username] = nil
+                writefile(commands_path, HttpService:JSONEncode(data))
+                show_success()
             end
-            data[username] = nil
-            writefile(commands_path, HttpService:JSONEncode(data))
         end
+    end)
+    if not success then
+        show_error_log(err)
     end
-end)
-
-if success then
-    show_success()
-else
-    show_error_log(err)
 end
+
+-- ==== Подключаем цикл к RunService ====
+RunService.Heartbeat:Connect(function()
+    execute_commands()
+end)
