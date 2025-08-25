@@ -1,67 +1,72 @@
 import json
 import os
-import asyncio
-from aiogram import Bot, Dispatcher, F, types
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
-# ==== Загрузка конфигурации ====
-with open("config.json", "r", encoding="utf-8") as f:
+# === Настройки ===
+CONFIG_FILE = "config.json"
+COMMANDS_FILE = "commands.json"
+
+with open(CONFIG_FILE, "r", encoding="utf-8") as f:
     cfg = json.load(f)
 
-TOKEN = cfg["BOT_TOKEN"]
-COMMANDS_FILE = "commands.json"
-bot = Bot(token=TOKEN)
-dp = Dispatcher()
+BOT_TOKEN = cfg["BOT_TOKEN"]
+CREATOR_ID = cfg["CREATOR_ID"]
 
-# ==== Создание файла команд, если его нет ====
+# Создание файла команд, если его нет
 if not os.path.exists(COMMANDS_FILE):
     with open(COMMANDS_FILE, "w", encoding="utf-8") as f:
         json.dump({}, f, indent=2)
 
 def update_command(username, command):
-    """Записывает команду для игрока"""
     with open(COMMANDS_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
     data[username] = command
     with open(COMMANDS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
-# ==== Стартовое сообщение ====
-@dp.message(F.text.startswith("/start"))
-async def start(msg: types.Message):
-    await msg.answer("✅ Бот запущен!\nИспользуйте `/user <RobloxName>` для управления игроком.", parse_mode="Markdown")
+# === /start ===
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != CREATOR_ID:
+        await update.message.reply_text("❌ У вас нет доступа.")
+        return
+    await update.message.reply_text("✅ Бот запущен!\nИспользуйте /user <RobloxName> для управления игроком.")
 
-# ==== Команда /user для управления игроком ====
-@dp.message(F.text.startswith("/user"))
-async def user_control(msg: types.Message):
-    args = msg.text.split()
-    if len(args) != 2:
-        await msg.answer("Использование: `/user <RobloxName>`", parse_mode="Markdown")
+# === /user ===
+async def user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != CREATOR_ID:
+        await update.message.reply_text("❌ У вас нет доступа.")
+        return
+    if len(context.args) != 1:
+        await update.message.reply_text("Использование: /user <RobloxName>")
         return
 
-    username = args[1]
+    username = context.args[0]
 
-    # Кнопки троллинга
     buttons = [
-        [InlineKeyboardButton(text="🟢 Jump", callback_data=f"jump:{username}")],
-        [InlineKeyboardButton(text="💀 Kill", callback_data=f"kill:{username}")],
-        [InlineKeyboardButton(text="⚡ Glitch Screen", callback_data=f"glitch:{username}")],
-        [InlineKeyboardButton(text="🔒 Lock Screen", callback_data=f"lock:{username}")]
+        [InlineKeyboardButton("🟢 Jump", callback_data=f"jump:{username}")],
+        [InlineKeyboardButton("💀 Kill", callback_data=f"kill:{username}")],
+        [InlineKeyboardButton("⚡ Glitch Screen", callback_data=f"glitch:{username}")],
+        [InlineKeyboardButton("🔒 Lock Screen", callback_data=f"lock:{username}")]
     ]
-    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-    await msg.answer(f"🎮 Действия для **{username}**:", reply_markup=keyboard, parse_mode="Markdown")
+    keyboard = InlineKeyboardMarkup(buttons)
+    await update.message.reply_text(f"🎮 Действия для {username}:", reply_markup=keyboard)
 
-# ==== Обработка нажатий кнопок ====
-@dp.callback_query()
-async def callbacks(callback: types.CallbackQuery):
-    command, username = callback.data.split(":")
+# === Обработка кнопок ===
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    command, username = query.data.split(":")
     update_command(username, command)
-    await callback.answer(f"Команда '{command}' отправлена {username}!")
+    await query.edit_message_text(f"Команда '{command}' отправлена {username}!")
 
-# ==== Главная функция запуска бота ====
-async def main():
-    print("Бот запущен...")
-    await dp.start_polling(bot)
-
+# === Запуск бота ===
 if __name__ == "__main__":
-    asyncio.run(main())
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("user", user))
+    app.add_handler(CallbackQueryHandler(button))
+
+    print("Бот запущен...")
+    app.run_polling()
