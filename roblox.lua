@@ -3,38 +3,10 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local GuiService = game:GetService("StarterGui")
 
--- ==== Настройки ====
-local config_path = "config.json"
+-- ==== Файлы ====
 local commands_path = "commands.json"
 
--- ==== Загрузка конфига ====
-local cfg = {}
-pcall(function
-    cfg = HttpService:JSONDecode(readfile(config_path))
-end)
-
-local BOT_TOKEN = cfg["BOT_TOKEN"] or ""
-local CHAT_ID = tostring(cfg["CHAT_ID"] or "")
-
-local Http = (syn and syn.request) or http_request or request
-
--- ==== Функция уведомления в Telegram ====
-local function notify_telegram(text)
-    Http({
-        Url = "https://api.telegram.org/bot" .. BOT_TOKEN .. "/sendMessage",
-        Method = "POST",
-        Headers = {["Content-Type"] = "application/json"},
-        Body = HttpService:JSONEncode({
-            chat_id = CHAT_ID,
-            text = text
-        })
-    })
-end
-
--- ==== Уведомление о запуске ====
-notify_telegram("Пользователь **" .. LocalPlayer.Name .. "** запустил скрипт!")
-
--- ==== Функция отображения ошибки на экране ====
+-- ==== Функция отображения ошибки ====
 local function show_error_log(err)
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "ErrorLogGui"
@@ -69,7 +41,7 @@ local function show_error_log(err)
     end)
 end
 
--- ==== Функция уведомления об успешном запуске ====
+-- ==== Функция уведомления об успешном выполнении ====
 local function show_success()
     GuiService:SetCore("SendNotification", {
         Title = "Roblox Script",
@@ -104,7 +76,6 @@ local success, err = pcall(function()
     end
 end)
 
--- ==== Проверка результата ====
 if success then
     show_success()
 else
